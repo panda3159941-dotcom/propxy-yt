@@ -90,7 +90,7 @@ def health():
     }
 
 
-@app.get("/ping")
+@app.api_route("/ping", methods=["GET", "HEAD"])
 def ping():
     return {"status": "Alive!"}
 
