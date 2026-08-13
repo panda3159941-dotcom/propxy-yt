@@ -90,6 +90,11 @@ def health():
     }
 
 
+@app.get("/ping")
+def ping():
+    return {"status": "Alive!"}
+
+
 @app.get("/search")
 def search(q: str, limit: int = 25, token: str | None = None):
     if PROXY_TOKEN and token != PROXY_TOKEN:
@@ -167,12 +172,17 @@ def search(q: str, limit: int = 25, token: str | None = None):
                         if isinstance(duration_sec, (int, float))
                         else 30000
                     )
+                    artwork = item.get("thumbnail") or ""
+                    if not artwork:
+                        thumbs = item.get("thumbnails") or []
+                        if thumbs:
+                            artwork = thumbs[-1].get("url") or ""
                     tracks.append({
                         "track_id": vid,
                         "title": item.get("title") or "Без названия",
                         "artist": item.get("uploader") or "Неизвестен",
                         "album": "",
-                        "artwork": item.get("thumbnail") or "",
+                        "artwork": artwork,
                         "duration_ms": duration_ms,
                         "video_id": vid,
                     })
@@ -181,5 +191,9 @@ def search(q: str, limit: int = 25, token: str | None = None):
 
     if not tracks:
         logger.warning("Search %r returned 0 results from all sources", q)
+
+    for t in tracks:
+        if not t.get("artwork") and t.get("video_id"):
+            t["artwork"] = f"https://i.ytimg.com/vi/{t['video_id']}/hqdefault.jpg"
 
     return tracks
