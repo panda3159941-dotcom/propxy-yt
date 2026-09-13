@@ -57,14 +57,26 @@ app.add_middleware(
 )
 
 
+# Один клиент на весь процесс вместо пересоздания на каждый запрос —
+# инициализация YTMusic() поднимает requests-сессию, делать это на каждый
+# /search незачем и лишний расход CPU/памяти на слабом хостинге.
+_ytmusic_client = None
+_ytmusic_ready = False
+
+
 def _get_ytmusic():
+    global _ytmusic_client, _ytmusic_ready
+    if _ytmusic_ready:
+        return _ytmusic_client
+    _ytmusic_ready = True
     if YTMusic is None:
         return None
     try:
-        return YTMusic()
+        _ytmusic_client = YTMusic()
     except Exception as e:
         logger.warning("YTMusic() init failed: %r", e)
-        return None
+        _ytmusic_client = None
+    return _ytmusic_client
 
 
 def _parse_dur(t):
@@ -159,7 +171,7 @@ def search(q: str, limit: int = 25, token: str | None = None):
 
     if not tracks and YoutubeDL is not None:
         try:
-            ydl_opts = {"quiet": True, "skip_download": True, "extract_flat": True}
+            ydl_opts = {"quiet": True, "skip_download": True, "extract_flat": True, "socket_timeout": 8}
             with YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(f"ytsearch{limit}:{q}", download=False)
                 for item in info.get("entries", []) or []:
